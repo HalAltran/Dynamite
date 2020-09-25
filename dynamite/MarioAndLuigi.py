@@ -5,6 +5,10 @@ from copy import deepcopy
 from abc import abstractmethod
 
 
+# TODO
+# get draw win rate and use that in success rate calculations
+# refactor opponent into own class
+
 class MarioAndLuigi:
 
     global random
@@ -13,43 +17,7 @@ class MarioAndLuigi:
     global abstractmethod
 
     def __init__(self):
-        self.match_up_dict = {
-              "R": {
-                "R": "D",
-                "P": "L",
-                "S": "W",
-                "D": "L",
-                "W": "W"
-              },
-              "P": {
-                "R": "W",
-                "P": "D",
-                "S": "L",
-                "D": "L",
-                "W": "W"
-              },
-              "S": {
-                "R": "L",
-                "P": "W",
-                "S": "D",
-                "D": "L",
-                "W": "W"
-              },
-              "D": {
-                "R": "W",
-                "P": "W",
-                "S": "W",
-                "D": "D",
-                "W": "L"
-              },
-              "W": {
-                "R": "L",
-                "P": "L",
-                "S": "L",
-                "D": "W",
-                "W": "D"
-              }
-            }
+        self.match_up_dict = self.get_match_up_dict()
         self.move_count_map = {'R': 0, 'P': 0, 'S': 0, 'D': 0, 'W': 0}
         self.move = 'P'
         self.round_count = 0
@@ -61,7 +29,7 @@ class MarioAndLuigi:
         self.opponents_dynamite_count = 0
         self.never_use_water = False
         self.draws_in_a_row = 0
-        self.strategies = [self.DynamiteDraws(), self.BeatRepeatedMove()]
+        self.strategies = [self.RandomRPS(), self.DynamiteDraws(), self.BeatRepeatedMove(), self.WaterDraws()]
         self.last_strategy_used = None
 
     def make_move(self, gamestate):
@@ -97,10 +65,13 @@ class MarioAndLuigi:
 
     def update_strategy_result(self, last_round):
         if self.last_strategy_used is not None:
-            if self.get_round_result(last_round) == 'W':
+            last_result = self.get_round_result(last_round)
+            if last_result == 'W':
                 self.last_strategy_used.wins += 1
+            elif last_result == 'L':
+                self.last_strategy_used.losses += 1
             else:
-                self.last_strategy_used.losses_or_draws += 1
+                self.last_strategy_used.draws += 1
 
     def get_round_result(self, round_dict):
         my_move = round_dict['p1']
@@ -168,7 +139,7 @@ class MarioAndLuigi:
             self.success_rate = 0
             self.use_strategy = True
             self.wins = 0
-            self.losses_or_draws = 0
+            self.losses = 0
             self.draws = 0
             self.times_used = 0
 
@@ -178,10 +149,10 @@ class MarioAndLuigi:
             return False
 
         def update_success_rate(self):
-            if self.times_used < 5 and self.success_rate <= 60:
+            if self.times_used < 4 and self.success_rate <= 60:
                 self.success_rate = 40 + random.randint(0, 20)
             else:
-                self.success_rate = int((float(self.wins) / float(self.times_used)) * 100)
+                self.success_rate = int((float(self.wins + self.draws / 2) / float(self.times_used)) * 100)
 
         @abstractmethod
         def is_applicable_abstract(self, mario_and_luigi, rounds):
@@ -190,6 +161,14 @@ class MarioAndLuigi:
         @abstractmethod
         def get_letter(self, mario_and_luigi, rounds):
             pass
+
+    class RandomRPS(Strategy):
+
+        def is_applicable(self, mario_and_luigi, rounds):
+            return True
+
+        def get_letter(self, mario_and_luigi, rounds):
+            return mario_and_luigi.get_random_rps()
 
     class DynamiteDraws(Strategy):
 
@@ -224,8 +203,63 @@ class MarioAndLuigi:
                 return mario_and_luigi.use_water()
             return mario_and_luigi.get_random_rps()
 
+    class PatternTrick(Strategy):
+        pass
+
+    class WaterDraws(Strategy):
+
+        def is_applicable_abstract(self, mario_and_luigi, rounds):
+            if mario_and_luigi.opponents_dynamite_count == 100:
+                self.use_strategy = False
+                return False
+            if mario_and_luigi.draws_in_a_row >= 2:
+                return True
+
+        def get_letter(self, mario_and_luigi, rounds):
+            return 'W'
+
     class Opponent:
 
         def __init__(self):
             self.dynamite_count = 0
             self.last_ten_moves = []
+
+    @staticmethod
+    def get_match_up_dict():
+        return {
+              "R": {
+                "R": "D",
+                "P": "L",
+                "S": "W",
+                "D": "L",
+                "W": "W"
+              },
+              "P": {
+                "R": "W",
+                "P": "D",
+                "S": "L",
+                "D": "L",
+                "W": "W"
+              },
+              "S": {
+                "R": "L",
+                "P": "W",
+                "S": "D",
+                "D": "L",
+                "W": "W"
+              },
+              "D": {
+                "R": "W",
+                "P": "W",
+                "S": "W",
+                "D": "D",
+                "W": "L"
+              },
+              "W": {
+                "R": "L",
+                "P": "L",
+                "S": "L",
+                "D": "W",
+                "W": "D"
+              }
+            }
