@@ -2,13 +2,19 @@ import random
 
 
 class RandomMoves:
+    global random
 
     def __init__(self):
-        self.move = 'P'
+        self.dynamite_count = 0
+        self.move_list = ['R', 'P', 'S', 'D']
 
     def make_move(self, gamestate):
-        return self.get_random_rps()
+        move = self.get_random_rps()
+        if move == 'D':
+            self.dynamite_count += 1
+            if self.dynamite_count == 100:
+                self.move_list.remove('D')
+        return move
 
-    @staticmethod
-    def get_random_rps():
-        return random.choice(['R', 'P', 'S'])
+    def get_random_rps(self):
+        return random.choice(self.move_list)
