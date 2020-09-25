@@ -6,12 +6,50 @@ from abc import abstractmethod
 
 
 class MarioAndLuigi:
+
     global random
     global copy
     global deepcopy
     global abstractmethod
 
     def __init__(self):
+        self.match_up_dict = {
+              "R": {
+                "R": "D",
+                "P": "L",
+                "S": "W",
+                "D": "L",
+                "W": "W"
+              },
+              "P": {
+                "R": "W",
+                "P": "D",
+                "S": "L",
+                "D": "L",
+                "W": "W"
+              },
+              "S": {
+                "R": "L",
+                "P": "W",
+                "S": "D",
+                "D": "L",
+                "W": "W"
+              },
+              "D": {
+                "R": "W",
+                "P": "W",
+                "S": "W",
+                "D": "D",
+                "W": "L"
+              },
+              "W": {
+                "R": "L",
+                "P": "L",
+                "S": "L",
+                "D": "W",
+                "W": "D"
+              }
+            }
         self.move_count_map = {'R': 0, 'P': 0, 'S': 0, 'D': 0, 'W': 0}
         self.move = 'P'
         self.round_count = 0
@@ -24,7 +62,7 @@ class MarioAndLuigi:
         self.never_use_water = False
         self.draws_in_a_row = 0
         self.strategies = [self.DynamiteDraws(), self.BeatRepeatedMove()]
-        # self.strategies.append(self.DynamiteDraws())
+        self.last_strategy_used = None
 
     def make_move(self, gamestate):
         rounds = gamestate['rounds']
@@ -43,16 +81,37 @@ class MarioAndLuigi:
         chosen_move = self.get_random_rps()
         self.update_opponents_moves(rounds)
 
-        # if self.use_dynamite():
-        #     chosen_move = 'D'
+        self.update_strategy_result(rounds[-1])
 
-        self.strategies.sort(key=lambda entry: entry.priority)
+        self.sort_strategies()
 
         for strategy in self.strategies:
             if strategy.is_applicable(self, rounds):
                 chosen_move = strategy.get_letter(self, rounds)
+                self.last_strategy_used = strategy
+
+        if self.last_strategy_used is not None:
+            self.last_strategy_used.times_used += 1
 
         return chosen_move
+
+    def update_strategy_result(self, last_round):
+        if self.last_strategy_used is not None:
+            if self.get_round_result(last_round) == 'W':
+                self.last_strategy_used.wins += 1
+            else:
+                self.last_strategy_used.losses_or_draws += 1
+
+    def get_round_result(self, round_dict):
+        my_move = round_dict['p1']
+        opponents_move = round_dict['p2']
+
+        return self.match_up_dict[my_move][opponents_move]
+
+    def sort_strategies(self):
+        for strategy in self.strategies:
+            strategy.update_success_rate()
+        self.strategies.sort(key=lambda entry: entry.success_rate)
 
     def update_moves_used(self, chosen_move):
         if chosen_move == 'D':
@@ -94,33 +153,10 @@ class MarioAndLuigi:
             if count == reverse_count:
                 break
 
-    # def move_that_beats_opponents_last_move(self, rounds):
-    #     opponents_last_move = rounds[-1]['p2']
-    #     if opponents_last_move == 'R':
-    #         return 'P'
-    #     elif opponents_last_move == 'P':
-    #         return 'S'
-    #     elif opponents_last_move == 'S':
-    #         return 'R'
-    #     elif opponents_last_move == 'D':
-    #         return self.use_water()
-    #     return self.get_random_rps()
-
     def use_water(self):
         if not self.never_use_water:
             return 'W'
         return self.get_random_rps()
-
-    def update_opponents_last_ten_moves(self):
-        pass
-
-    def use_dynamite(self):
-        if self.dynamite_count < 100:
-            # if self.opponents_last_ten_moves['W'] == 0 and self.dynamites_in_a_row_count < 2:
-            #     return True
-            if self.draws_in_a_row >= 2:
-                return True
-        return False
 
     @staticmethod
     def get_random_rps():
@@ -128,17 +164,24 @@ class MarioAndLuigi:
 
     class Strategy:
 
-        def __init__(self, priority):
-            self.priority = priority
+        def __init__(self):
             self.success_rate = 0
             self.use_strategy = True
-            self.success_count = 0
-            self.fail_count = 0
+            self.wins = 0
+            self.losses_or_draws = 0
+            self.draws = 0
+            self.times_used = 0
 
         def is_applicable(self, mario_and_luigi, rounds):
             if self.use_strategy:
                 return self.is_applicable_abstract(mario_and_luigi, rounds)
             return False
+
+        def update_success_rate(self):
+            if self.times_used < 5 and self.success_rate <= 60:
+                self.success_rate = 40 + random.randint(0, 20)
+            else:
+                self.success_rate = int((float(self.wins) / float(self.times_used)) * 100)
 
         @abstractmethod
         def is_applicable_abstract(self, mario_and_luigi, rounds):
@@ -149,9 +192,6 @@ class MarioAndLuigi:
             pass
 
     class DynamiteDraws(Strategy):
-
-        def __init__(self):
-            super().__init__(3)
 
         def is_applicable_abstract(self, mario_and_luigi, rounds):
             if mario_and_luigi.dynamite_count == 100:
@@ -164,9 +204,6 @@ class MarioAndLuigi:
             return 'D'
 
     class BeatRepeatedMove(Strategy):
-
-        def __init__(self):
-            super().__init__(8)
 
         def is_applicable_abstract(self, mario_and_luigi, rounds):
             return next(iter(mario_and_luigi.opponents_same_move_in_a_row.values())) >= 2
@@ -186,3 +223,9 @@ class MarioAndLuigi:
             elif opponents_last_move == 'D':
                 return mario_and_luigi.use_water()
             return mario_and_luigi.get_random_rps()
+
+    class Opponent:
+
+        def __init__(self):
+            self.dynamite_count = 0
+            self.last_ten_moves = []

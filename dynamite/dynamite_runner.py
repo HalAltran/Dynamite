@@ -2,6 +2,7 @@ import json
 
 from dynamite.MarioAndLuigi import MarioAndLuigi
 from dynamite.big_snip import BigSnip
+from dynamite.example_bots import CopyOpponentsLastMoveBot
 from dynamite.random_moves import RandomMoves
 
 WIN_COUNT = 1000
