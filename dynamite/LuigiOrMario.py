@@ -51,8 +51,8 @@ class LuigiOrMario:
         beat_repeated_eleven.success_rate = 100
 
         self.strategies = [self.RandomRPS(), self.DynamiteDraws(2), self.DynamiteDraws(3), self.BeatRepeatedMove(2),
-                           self.WaterDraws(2), self.WaterDraws(3), self.PredictDynamiteAtInterval(), beat_repeated_five,
-                           beat_repeated_eleven, self.PatternTrick(2), self.PatternTrick(3)]
+                           self.WaterDraws(1), self.WaterDraws(2), self.WaterDraws(3), self.PredictDynamiteAtInterval(),
+                           beat_repeated_five, beat_repeated_eleven, self.PatternTrick(2), self.PatternTrick(3)]
 
         self.last_strategy_used = None
 
@@ -243,8 +243,13 @@ class LuigiOrMario:
             self.number_of_repetitions = number_of_repetitions
 
         def is_applicable_abstract(self, mario_and_luigi, rounds):
-            return next(iter(mario_and_luigi.opponent.same_move_in_a_row.values())) >= self.number_of_repetitions and\
-                   self.can_use_water_if_opponents_last_move_was_dynamite(mario_and_luigi, rounds[-1]['p2'])
+            return self.is_best_repeated_applicable()
+            # return next(iter(mario_and_luigi.opponent.same_move_in_a_row.values())) >= self.number_of_repetitions and\
+            #        self.can_use_water_if_opponents_last_move_was_dynamite(mario_and_luigi, rounds[-1]['p2'])
+
+        @abstractmethod
+        def is_best_repeated_applicable(self):
+            pass
 
         def get_letter_abstract(self, mario_and_luigi, rounds):
             return self.move_that_beats_opponents_last_move(mario_and_luigi, rounds)
@@ -267,6 +272,9 @@ class LuigiOrMario:
             return mario_and_luigi.get_random_rps()
 
     class BeatOpponentsRepeatedWater(BeatRepeatedMove):
+
+        def is_best_repeated_applicable(self):
+            pass
 
         pass
 
