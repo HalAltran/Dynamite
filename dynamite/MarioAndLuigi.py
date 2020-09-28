@@ -5,15 +5,6 @@ from copy import deepcopy
 from abc import abstractmethod
 
 
-# Write bot that bombs in pattern.
-# Write bot that beats bomb-in-pattern bot.
-# Write bot that tricks pattern-reading bot into predicting it's pattern then switching.
-# Change final bot into Strategy inside this bot.
-# Add strategy that has a high priority (success rate still?) that beats the opponents last move if they've repeated it
-# more than like 5 times. This is difficult to pick up with my current system because things like this may only happen
-# once and could cost you the match.
-
-
 class MarioAndLuigi:
 
     global random
@@ -138,7 +129,7 @@ class MarioAndLuigi:
     def add_new_strategies_if_appropriate(self):
         if self.dynamite_count < 60 and self.round_count > 1000 and\
                 not any(isinstance(strategy, self.DynamitePrimes) for strategy in self.strategies):
-            self.strategies.append(self.DynamitePrimes())  # what is this warning?
+            self.strategies.append(self.DynamitePrimes())
 
     @staticmethod
     def get_random_rps():
@@ -268,7 +259,6 @@ class MarioAndLuigi:
             return self.lose_to_my_last_move(rounds)
 
         def last_n_moves_repeated(self, rounds):
-            # second_last_move = rounds[-2]['p1']
             last_move = rounds[-1]['p1']
             for n in range(1, self.number_of_repetitions + 1):
                 n_last_move = rounds[-n]['p1']
@@ -277,7 +267,6 @@ class MarioAndLuigi:
                 else:
                     return False
             return True
-            # return last_move == second_last_move and last_move in ['R', 'P', 'S']
 
         @staticmethod
         def last_move_rps(last_move):
