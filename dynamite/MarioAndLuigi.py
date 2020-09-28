@@ -41,9 +41,15 @@ class MarioAndLuigi:
 
         self.can_use_water = True
 
+        beat_repeated_five = self.BeatRepeatedMove(5)
+        beat_repeated_five.success_rate = 100
+
+        beat_repeated_eleven = self.BeatRepeatedMove(11)
+        beat_repeated_five.success_rate = 100
+
         self.strategies = [self.RandomRPS(), self.DynamiteDraws(2), self.DynamiteDraws(3), self.BeatRepeatedMove(2),
-                           self.WaterDraws(2), self.WaterDraws(3), self.PredictDynamiteAtInterval(),
-                           self.PatternTrick(2)]
+                           self.WaterDraws(2), self.WaterDraws(3), self.PredictDynamiteAtInterval(), beat_repeated_five,
+                           beat_repeated_eleven, self.PatternTrick(2), self.PatternTrick(3)]
 
         self.last_strategy_used = None
 
@@ -156,7 +162,7 @@ class MarioAndLuigi:
         def update_success_rate(self, overall_draw_win_rate):
             if self.times_used < 4 and self.success_rate <= 60:
                 self.success_rate = 51 + random.randint(0, 9)
-            else:
+            elif self.times_used > 0:
                 win_rate = (float(self.wins) / float(self.times_used)) * 100
                 draw_win_rate = float(overall_draw_win_rate * self.draws) / float(self.times_used)
                 self.success_rate = int(win_rate + draw_win_rate)
@@ -338,9 +344,6 @@ class MarioAndLuigi:
 
         def get_letter(self, mario_and_luigi, rounds):
             return 'W'
-
-    class WaterSuccessiveDynamites(Strategy):
-        pass
 
     class Opponent:
 
