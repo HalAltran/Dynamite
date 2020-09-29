@@ -1,20 +1,17 @@
 import random
 import copy
+from collections import Counter
 
 from copy import deepcopy
 from abc import abstractmethod
 
 
-# Water repeated dynamite draws.
-
-# For some reason I'm allowing opponent to dynamite draws.
-
-# Beat opponents recent draw finishers. Also lose to opponents recent draw finishers.
+# Beat opponent's recent draw finishers. Also lose to opponent's recent draw finishers. Where a draw finisher is the
+# opponents move after 2 successive draws and/or the opponent's move that ends the draw streak (may be a win or loss).
 
 # Reset strategies if losing after n matches.
 
-# Success rate of strategies only changes when it's used. Could
-# be updated whether that strategy is actually used or not. I.e. don't just update success rate of last strat used!!!
+# I keep dynamiting draws and they keep watering me. Need to finish implementing sliding window for draw finishers.
 
 
 class LuigiOrMario:
@@ -50,9 +47,10 @@ class LuigiOrMario:
         beat_repeated_eleven = self.BeatRepeatedMove(11)
         beat_repeated_eleven.success_rate = 100
 
-        self.strategies = [self.RandomRPS(), self.DynamiteDraws(2), self.DynamiteDraws(3), self.BeatRepeatedMove(2),
+        self.strategies = [self.RandomRPS(), self.DynamiteDraws(2), self.DynamiteDraws(3), self.RandomRPSDraws(2),
                            self.WaterDraws(1), self.WaterDraws(2), self.WaterDraws(3), self.PredictDynamiteAtInterval(),
-                           beat_repeated_five, beat_repeated_eleven, self.PatternTrick(2), self.PatternTrick(3)]
+                           beat_repeated_five, beat_repeated_eleven, self.PatternTrick(2), self.PatternTrick(3),
+                           self.BeatRepeatedDynamite(2), self.BeatRepeatedWater(2), self.BeatRepeatedRPS(2)]
 
         self.last_strategy_used = None
 
@@ -63,21 +61,26 @@ class LuigiOrMario:
 
         if len(rounds) > 0:
             chosen_move = self.choose_move(rounds)
-        self.update_moves_used(chosen_move)
 
+        self.update_dynamite_count(chosen_move)
         self.round_count += 1
+
         return chosen_move
 
     def choose_move(self, rounds):
-        self.update_draw_multiplier(rounds[-1])
+        last_round = rounds[-1]
+
+        self.update_opponent_third_draw_moves(last_round['p1'])
+
+        self.update_draw_multiplier(last_round)
         chosen_move = self.get_random_rps()
 
         self.opponent.update_moves(rounds)
 
-        self.update_strategy_result(rounds[-1])
+        self.update_draw_win_rate(last_round)
         self.add_new_strategies_if_appropriate()
 
-        self.update_strategy_success_rate_and_sort()
+        self.update_strategy_success_rate_and_sort(last_round)
 
         for strategy in self.strategies:
             if strategy.is_applicable(self, rounds):
@@ -88,25 +91,6 @@ class LuigiOrMario:
             self.last_strategy_used.times_used += 1
 
         return chosen_move
-
-    def update_strategy_result(self, last_round):
-
-        if self.last_strategy_used is not None:
-            latest_result = self.get_round_result(last_round)
-            self.update_draw_win_rate(latest_result)
-
-            # self.last_result = latest_result
-            # if self.last_result == 'W':
-            #     pass
-            #     self.last_strategy_used.wins += 1
-            # elif self.last_result == 'L':
-            #     self.last_strategy_used.losses += 1
-            # else:
-            #     self.last_strategy_used.draws += 1
-            #     self.draw_count += 1
-
-        for strategy in self.strategies:
-            strategy.update_success_rate(self, last_round['p2'], self.draw_win_rate)
 
     def get_round_result(self, round_dict):
         my_move = round_dict['p1']
@@ -126,12 +110,12 @@ class LuigiOrMario:
             if self.draws_won > 0 or self.draws_lost > 0:
                 self.draw_win_rate = int(float(self.draws_won) / float(self.draws_won + self.draws_lost) * 100)
 
-    def update_strategy_success_rate_and_sort(self):
-        # for strategy in self.strategies:
-        #     strategy.update_success_rate(self.draw_win_rate)
+    def update_strategy_success_rate_and_sort(self, last_round):
+        for strategy in self.strategies:
+            strategy.update_success_rate(self, last_round['p2'], self.draw_win_rate)
         self.strategies.sort(key=lambda entry: entry.success_rate)
 
-    def update_moves_used(self, chosen_move):
+    def update_dynamite_count(self, chosen_move):
         if chosen_move == 'D':
             self.dynamite_count += 1
             self.dynamites_in_a_row_count += 1
@@ -149,6 +133,10 @@ class LuigiOrMario:
         if self.dynamite_count < 60 and self.round_count > 1000 and\
                 not any(isinstance(strategy, self.DynamitePrimes) for strategy in self.strategies):
             self.strategies.append(self.DynamitePrimes())
+
+    def update_opponent_third_draw_moves(self, last_move):
+        if self.draw_multiplier == 3:
+            self.opponent.third_draw_moves.append(last_move)
 
     @staticmethod
     def get_random_rps():
@@ -192,13 +180,6 @@ class LuigiOrMario:
                 draw_win_rate = float(overall_draw_win_rate * self.draws) / float(self.times_applicable)
                 self.success_rate = int(win_rate + draw_win_rate)
 
-            # if self.times_used < 4 and self.success_rate <= 60:
-            #     self.success_rate = 51 + random.randint(0, 9)
-            # elif self.times_used > 0:
-            #     win_rate = (float(self.wins) / float(self.times_used)) * 100
-            #     draw_win_rate = float(overall_draw_win_rate * self.draws) / float(self.times_used)
-            #     self.success_rate = int(win_rate + draw_win_rate)
-
         @abstractmethod
         def is_applicable_abstract(self, mario_and_luigi, rounds):
             pass
@@ -236,6 +217,30 @@ class LuigiOrMario:
         def get_letter_abstract(self, mario_and_luigi, rounds):
             return 'D'
 
+    class RandomRPSDraws(Strategy):
+
+        def __init__(self, consecutive_draws):
+            super().__init__()
+            self.consecutive_draws = consecutive_draws
+
+        def is_applicable_abstract(self, mario_and_luigi, rounds):
+            return mario_and_luigi.draw_multiplier > self.consecutive_draws
+
+        def get_letter_abstract(self, mario_and_luigi, rounds):
+            return mario_and_luigi.get_random_rps()
+
+    # class BeatThirdDrawMove(Strategy):
+    #
+    #     def is_applicable_abstract(self, mario_and_luigi, rounds):
+    #         return mario_and_luigi.draw_multiplier == 3
+    #
+    #     def get_letter_abstract(self, mario_and_luigi, rounds):
+    #         chosen = 'P'
+    #         # most_common = Counter(list(reversed(mario_and_luigi.opponent.third_draw_moves))[:5]).most_common()
+    #         for draw_finisher in list(reversed(mario_and_luigi.opponent.third_draw_moves))[:5]:
+    #             chosen = draw_finisher
+    #         return chosen
+
     class BeatRepeatedMove(Strategy):
 
         def __init__(self, number_of_repetitions):
@@ -243,12 +248,11 @@ class LuigiOrMario:
             self.number_of_repetitions = number_of_repetitions
 
         def is_applicable_abstract(self, mario_and_luigi, rounds):
-            return self.is_best_repeated_applicable()
-            # return next(iter(mario_and_luigi.opponent.same_move_in_a_row.values())) >= self.number_of_repetitions and\
-            #        self.can_use_water_if_opponents_last_move_was_dynamite(mario_and_luigi, rounds[-1]['p2'])
+            return next(iter(mario_and_luigi.opponent.same_move_in_a_row.values())) >= self.number_of_repetitions and\
+                   self.is_best_repeated_applicable(mario_and_luigi, rounds[-1]['p1'])
 
         @abstractmethod
-        def is_best_repeated_applicable(self):
+        def is_best_repeated_applicable(self, mario_and_luigi,  opponents_last_move):
             pass
 
         def get_letter_abstract(self, mario_and_luigi, rounds):
@@ -271,18 +275,20 @@ class LuigiOrMario:
                 return 'W'
             return mario_and_luigi.get_random_rps()
 
-    class BeatOpponentsRepeatedWater(BeatRepeatedMove):
+    class BeatRepeatedWater(BeatRepeatedMove):
 
-        def is_best_repeated_applicable(self):
-            pass
+        def is_best_repeated_applicable(self, mario_and_luigi,  opponents_last_move):
+            return opponents_last_move == 'W'
 
-        pass
+    class BeatRepeatedDynamite(BeatRepeatedMove):
 
-    class BeatOpponentsRepeatedDynamite(Strategy):
-        pass
+        def is_best_repeated_applicable(self, mario_and_luigi,  opponents_last_move):
+            return opponents_last_move == 'D' and mario_and_luigi.can_use_water
 
-    class BeatOpponentsRepeatedRPS(Strategy):
-        pass
+    class BeatRepeatedRPS(BeatRepeatedMove):
+
+        def is_best_repeated_applicable(self, mario_and_luigi,  opponents_last_move):
+            return opponents_last_move in ['R', 'P', 'S']
 
     class DynamitePrimes(Strategy):
 
