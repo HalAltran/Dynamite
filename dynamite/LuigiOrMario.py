@@ -153,6 +153,8 @@ class LuigiOrMario:
         elif move_to_lose_to == 'S':
             return 'P'
         elif move_to_lose_to == 'W':
+            if self.dynamite_count >= 100:
+                return self.get_random_rps()
             return 'D'
         return self.get_random_rps()
 
