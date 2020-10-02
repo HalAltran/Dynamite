@@ -156,6 +156,15 @@ class LuigiOrMario:
             return 'D'
         return self.get_random_rps()
 
+    def get_move_with_most_occurrences(self, move_occurrence_dict):
+        popular_move = self.get_random_rps()
+        most_uses = 0
+        for move, uses in move_occurrence_dict.items():
+            if uses > most_uses:
+                popular_move = move
+                most_uses = uses
+        return popular_move
+
     class Strategy:
 
         def __init__(self):
@@ -254,9 +263,14 @@ class LuigiOrMario:
                    len(mario_and_luigi.opponent.third_draw_moves) >= self.window
 
         def get_letter_abstract(self, mario_and_luigi, rounds):
-            popular_third_draw_move = mario_and_luigi.opponent.get_popular_third_draw_move(mario_and_luigi, self.window)
+            third_draw_move_occurrences = mario_and_luigi.opponent.get_third_draw_move_occurrences(self.window)
 
-            return mario_and_luigi.get_winning_move(popular_third_draw_move)
+            if 'D' in third_draw_move_occurrences and not mario_and_luigi.can_use_water:
+                del third_draw_move_occurrences['D']
+
+            popular_third_draw_move = mario_and_luigi.get_move_with_most_occurrences(third_draw_move_occurrences)
+
+            return mario_and_luigi.get_losing_move(popular_third_draw_move)
 
     class LoseToThirdDrawMove(Strategy):
 
@@ -269,7 +283,13 @@ class LuigiOrMario:
                    len(mario_and_luigi.opponent.third_draw_moves) >= self.window
 
         def get_letter_abstract(self, mario_and_luigi, rounds):
-            popular_third_draw_move = mario_and_luigi.opponent.get_popular_third_draw_move(mario_and_luigi, self.window)
+            third_draw_move_occurrences = mario_and_luigi.opponent.get_third_draw_move_occurrences(self.window)
+
+            if 'W' in third_draw_move_occurrences and mario_and_luigi.dynamite_count >= 100:
+                del third_draw_move_occurrences['W']
+
+            popular_third_draw_move = mario_and_luigi.get_move_with_most_occurrences(third_draw_move_occurrences)
+
             return mario_and_luigi.get_losing_move(popular_third_draw_move)
 
     class BeatRepeatedMove(Strategy):
@@ -468,7 +488,7 @@ class LuigiOrMario:
         def get_last_n_third_draw_moves(self, last_n_count):
             return list(reversed(self.third_draw_moves))[:last_n_count]
 
-        def get_popular_third_draw_move(self, mario_and_luigi, window):
+        def get_third_draw_move_occurrences(self, window):
             occurrences = {}
 
             for third_draw_move in self.get_last_n_third_draw_moves(window):
@@ -476,17 +496,7 @@ class LuigiOrMario:
                     occurrences[third_draw_move] = occurrences[third_draw_move] + 1
                 else:
                     occurrences[third_draw_move] = 1
-
-            if 'D' in occurrences and not mario_and_luigi.can_use_water:
-                del occurrences['D']
-
-            popular_third_draw_move = mario_and_luigi.get_random_rps()
-            most_uses = 0
-            for move, uses in occurrences.items():
-                if uses > most_uses:
-                    popular_third_draw_move = move
-                    most_uses = uses
-            return popular_third_draw_move
+            return occurrences
 
     @staticmethod
     def get_match_up_dict():
