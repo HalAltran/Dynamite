@@ -1,17 +1,8 @@
 import random
 import copy
-from collections import Counter
 
 from copy import deepcopy
 from abc import abstractmethod
-
-
-# Beat opponent's recent draw finishers. Also lose to opponent's recent draw finishers. Where a draw finisher is the
-# opponents move after 2 successive draws and/or the opponent's move that ends the draw streak (may be a win or loss).
-
-# Reset strategies if losing after n matches.
-
-# I keep dynamiting draws and they keep watering me. Need to finish implementing sliding window for draw finishers.
 
 
 class LuigiOrMario:
@@ -263,25 +254,6 @@ class LuigiOrMario:
                    len(mario_and_luigi.opponent.third_draw_moves) >= self.window
 
         def get_letter_abstract(self, mario_and_luigi, rounds):
-            # occurrences = {}
-            # # for draw_finisher in list(reversed(mario_and_luigi.opponent.third_draw_moves))[:5]:
-            # for third_draw_move in mario_and_luigi.opponent.get_last_n_third_draw_moves(5):
-            #     if third_draw_move in occurrences:
-            #         occurrences[third_draw_move] = occurrences[third_draw_move] + 1
-            #     else:
-            #         occurrences[third_draw_move] = 1
-            #     # chosen = draw_finisher
-            #
-            # if 'D' in occurrences and not mario_and_luigi.can_use_water:
-            #     del occurrences['D']
-            #
-            # popular_third_draw_move = mario_and_luigi.get_random_rps()
-            # most_uses = 0
-            # for move, uses in occurrences.items():
-            #     if uses > most_uses:
-            #         popular_third_draw_move = move
-            #         most_uses = uses
-
             popular_third_draw_move = mario_and_luigi.opponent.get_popular_third_draw_move(mario_and_luigi, self.window)
 
             return mario_and_luigi.get_winning_move(popular_third_draw_move)
@@ -324,18 +296,6 @@ class LuigiOrMario:
         @staticmethod
         def move_that_beats_opponents_last_move(mario_and_luigi, rounds):
             return mario_and_luigi.get_winning_move(rounds[-1]['p2'])
-
-            # opponents_last_move = rounds[-1]['p2']
-
-            # if opponents_last_move == 'R':
-            #     return 'P'
-            # elif opponents_last_move == 'P':
-            #     return 'S'
-            # elif opponents_last_move == 'S':
-            #     return 'R'
-            # elif opponents_last_move == 'D':
-            #     return 'W'
-            # return mario_and_luigi.get_random_rps()
 
     class BeatRepeatedWater(BeatRepeatedMove):
 
