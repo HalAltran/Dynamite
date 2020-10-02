@@ -5,6 +5,9 @@ from copy import deepcopy
 from abc import abstractmethod
 
 
+# Sliding window for all strategies.
+
+
 class LuigiOrMario:
 
     global random
@@ -45,6 +48,9 @@ class LuigiOrMario:
                            self.BeatThirdDrawMove(5), self.LoseToThirdDrawMove(5)]
 
         self.last_strategy_used = None
+
+        self.can_add_dynamite_single_draws_strategy = True
+        self.can_add_dynamite_randomly_strategy = True
 
     def make_move(self, gamestate):
         rounds = gamestate['rounds']
@@ -122,9 +128,15 @@ class LuigiOrMario:
             self.draw_multiplier = 1
 
     def add_new_strategies_if_appropriate(self):
-        if self.dynamite_count < 60 and self.round_count > 1000 and\
-                not any(isinstance(strategy, self.DynamitePrimes) for strategy in self.strategies):
-            self.strategies.append(self.DynamitePrimes())
+        if self.dynamite_count < 60 and self.round_count > 1000 and self.can_add_dynamite_single_draws_strategy:
+            self.strategies.append(self.DynamiteDraws(1))
+            self.can_add_dynamite_single_draws_strategy = False
+
+        if self.round_count > 1400 and self.can_add_dynamite_randomly_strategy:
+            if self.can_add_dynamite_single_draws_strategy:
+                self.strategies.append(self.DynamiteDraws(1))
+            self.strategies.append(self.RandomRPSD())
+            self.can_add_dynamite_randomly_strategy = False
 
     def update_opponent_third_draw_moves(self, last_move):
         if self.draw_multiplier == 3:
@@ -133,6 +145,10 @@ class LuigiOrMario:
     @staticmethod
     def get_random_rps():
         return random.choice(['R', 'P', 'S'])
+
+    @staticmethod
+    def get_random_rpsd():
+        return random.choice(['R', 'P', 'S', 'D'])
 
     def get_winning_move(self, move_to_beat):
         if move_to_beat == 'R':
@@ -224,6 +240,14 @@ class LuigiOrMario:
 
         def get_letter_abstract(self, mario_and_luigi, rounds):
             return mario_and_luigi.get_random_rps()
+
+    class RandomRPSD(Strategy):
+
+        def is_applicable_abstract(self, mario_and_luigi, rounds):
+            return mario_and_luigi.dynamite_count < 100
+
+        def get_letter_abstract(self, mario_and_luigi, rounds):
+            return mario_and_luigi.get_random_rpsd()
 
     class DynamiteDraws(Strategy):
 
